@@ -1,4 +1,23 @@
-CREATE OR REPLACE FUNCTION set_agent_state_trigger() RETURNS trigger AS $$
+drop table if exists calls;
+
+create table calls(
+    id serial primary key,
+    exten varchar(12),
+    callerid int,
+    dialstart int,
+    dialend int,
+    dialedtime int,
+    dtime int,
+    answeredtime int,
+    dialstatus varchar(12),
+    hangupcause varchar(15),
+    audiofile varchar(100),
+    calltype varchar(20),
+    ins timestamp default current_timestamp,
+    upd timestamp
+);
+
+    CREATE OR REPLACE FUNCTION set_agent_state_trigger() RETURNS trigger AS $$
 	DECLARE
 		channel_name varchar DEFAULT (TG_TABLE_NAME || '_changes');
 		row record;
