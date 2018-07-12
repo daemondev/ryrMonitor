@@ -6,9 +6,9 @@ CREATE OR REPLACE FUNCTION set_agent_state_trigger() RETURNS trigger AS $$
 		IF TG_OP = 'INSERT' THEN -- OR TG_OP = 'DELETE'
 			row := NEW;
                         if(select count(id) from agent_state where callerid=NEW.callerid and day=now()::date)then
-                            update agent_state set state='RINGING' where callerid=NEW.callerid and day=now()::date;
+                            update agent_state set state='RINGING',exten=NEW.exten where callerid=NEW.callerid and day=now()::date;
                         else
-                            insert into agent_state(callerid, state) values(NEW.callerid, 'RINGING');
+                            insert into agent_state(callerid, state, exten) values(NEW.callerid, 'RINGING', NEW.exten);
                         end if;
                 ELSIF TG_OP = 'UPDATE' THEN
 			row := NEW;
@@ -28,7 +28,7 @@ create table agent_state(
     id serial primary key,
     callerid int,
     state varchar(20),
-    phone varchar(11),
+    exten varchar(11),
     starttime timestamp default current_timestamp,
     endtime timestamp,
     totaltime time,

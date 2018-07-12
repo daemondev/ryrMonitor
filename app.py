@@ -47,7 +47,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         hub.add(self)
         #cur = cnx.cursor(cursor_factory = psycopg2.extras.DictCursor)
         cur = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
-        query = "select * from agent_state where day = now()::date"
+        query = "select id,callerid,state,exten,to_char(starttime,'DD/MM/YYYY - HH:MI:SS') as starttime,to_char(endtime,'DD/MM/YYYY - HH:MI:SS') as endtime,to_char(totaltime,'HH:MI:SS') as totaltime,to_char(ringtime,'HH:MI:SS') as ringtime,to_char(answertime,'HH:MI:SS') as answertime,to_char(holdtime,'HH:MI:SS') as holdtime,to_char(day,'DD/MM/YYYY') as day from agent_state where day = now()::date"
         cur.execute(query)
         #rows = cur.fetchall()
         print(json.dumps(cur.fetchall(), indent=2))
