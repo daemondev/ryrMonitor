@@ -79,7 +79,7 @@ ioloop.add_handler(cnx.fileno(), watch_db, ioloop.READ)
 def main():
 	try:
 		app.listen(8000)
-		listen('calls_changes')
+		listen('agent_state_changes')
 		print('server is running in port 8000')
 		ioloop.start()
 	except KeyboardInterrupt as e:

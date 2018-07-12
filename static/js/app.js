@@ -1,12 +1,14 @@
 var ws = null;
-var URL = 'ws://190.117.161.6:8000/ws';
+var URL = 'ws://localhost:8000/ws';
+//var URL = 'ws://190.117.161.6:8000/ws';
 
 function onOpen(){
-	
+
 }
 
 function updateState(data){
-	alert('from DB: ' +  data);
+    div = document.getElementById('div_log');
+    div.innerHTML = data;
 }
 
 function displayMessage(data){
@@ -14,7 +16,7 @@ function displayMessage(data){
 }
 
 handlers = {
-	'updateState': updateState, 
+	'updateState': updateState,
 	'displayMessage': displayMessage
 }
 
@@ -38,7 +40,6 @@ function __init__(){
 	ws = new WebSocket(URL);
 	ws.onopen = onOpen;
 	ws.onmessage = onMessage;
-	alert('ready!!!');
 }
 
 window.onload = __init__;
