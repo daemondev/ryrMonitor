@@ -1,23 +1,54 @@
 var ws = null;
 var URL = 'ws://localhost:8000/ws';
 //var URL = 'ws://190.117.161.6:8000/ws';
+//#-------------------------------------------------- BEGIN [production URL] - (14-07-2018 - 14:03:05) {{
+//var URL = 'ws://ryr.progr.am/ws'; //PRODUCTION URL
+//#-------------------------------------------------- END   [production URL] - (14-07-2018 - 14:03:05) }}
 
-function onOpen(){
 
+var log_color = {"C": "#89FF28", "E": "#FF2828"};
+
+function setLog(message, color){
+    div_log = document.getElementById('div_log');
+    div_log.innerHTML = message;
+    div_log.style.backgroundColor = log_color[color];
 }
 
+function onOpen(){
+    setLog("> CONNECTED TO SERVER!!!", "C");
+}
+
+var state_colors_dict = {"IDLE": "#C7E6F7", "RINGING": "#FCFFC3", "TALKING": "#A7FF81"};
+
 function updateState(data){
-    div = document.getElementById('div_log');
-    div.innerHTML = data;
+    target_exten = document.getElementById(data["row"]["callerid"]+"");
+    target_exten.getElementsByClassName('state')[0].innerHTML = data["row"]['state'];
+    target_exten.getElementsByClassName('calltype')[0].innerHTML = data["row"]['calltype'];
+    target_exten.getElementsByClassName('exten')[0].innerHTML = data["row"]['exten'];
+    target_exten.style.backgroundColor = state_colors_dict[data.row.state];
 }
 
 function displayMessage(data){
 	alert('displayMessage');
 }
 
+function getCard(data){
+    card = "<div id='dataContainner'>";
+    for (var i = 0; i < data.length; i++) {
+        card = card + "<div style='background-color:" + state_colors_dict[data[i]['state']] + ";' class='div_exten' id='" + data[i]['callerid'] + "'><span>AGENT: " + data[i]['callerid'] + " STATUS: <strong class='state'>" + data[i]['state'] + "</strong> CALLTYPE: <span class='calltype'>" + data[i]['calltype'] + "</span> PHONE: <span class='exten'>" + data[i]["exten"] + "</span></span></div>";
+    }
+    return card + "</div>";
+}
+
+function fillData (data) {
+    div_data = document.getElementById('div_data');
+    div_data.innerHTML = getCard(data);
+}
+
 handlers = {
 	'updateState': updateState,
-	'displayMessage': displayMessage
+	'displayMessage': displayMessage,
+        'fillData': fillData
 }
 
 function onMessage(message){
@@ -36,10 +67,26 @@ function send(event, data){
 	ws.send(JSON.stringify({'event': event, 'data': data}));
 }
 
+function onClose(e) {
+    console.log("Socket is closed, reconnect will attempted IN 1 second.", e.reason);
+    setLog("> CLOSED CONNECTION!!!", "E");
+    setTimeout(function(){
+        __init__();
+    }, 1000);
+}
+
+function onError(err) {
+    console.error("Error in Socket: ", err.message, "Closing socket");
+    setLog("> ERROR IN CONNECTION WITH SERVER!!!", "E");
+    ws.close();
+}
+
 function __init__(){
 	ws = new WebSocket(URL);
 	ws.onopen = onOpen;
 	ws.onmessage = onMessage;
+        ws.onclose = onClose;
+        ws.onerror = onError;
 }
 
 window.onload = __init__;

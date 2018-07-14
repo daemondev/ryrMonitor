@@ -9,13 +9,44 @@ import psycopg2 as pq
 import psycopg2.extras
 import os
 
-class IndexHandler(tornado.web.RequestHandler):
+class BaseHandler(tornado.web.RequestHandler):
+    def get_current_user(self):
+        return self.get_secure_cookie("user")
+
+#class IndexHandler(tornado.web.RequestHandler):
+class IndexHandler(BaseHandler):
     def get(self):
+        if not self.current_user:
+            self.redirect("/login")
+            return
+        name = tornado.escape.xhtml_escape(self.current_user)
         self.render('index.html', state='Ready!!!')
+
+class LoginHandler(BaseHandler):
+    def get(self):
+        self.write('<html><body><div align="center" style="text-align:center;"><form action="/login" method="post">'
+                   'User</br><input type="text" name="name"></br>'
+                   'Password</br><input type="password" name="password"></br></br>'
+                   '<input type="submit" value="Sign in">'
+                   '</form></div></body></html>')
+
+    def post(self):
+        user = self.get_argument("name")
+        password = self.get_argument("password")
+        if user == "monitor" and password == "123":
+            self.set_secure_cookie("user", user)
+            self.redirect("/")
+        else:
+            self.redirect("/login")
 
 ioloop = tornado.ioloop.IOLoop.instance()
 hub = set()
 cnx = pq.connect('host=ryr.homeplex.org port=55443 dbname=asterisk user=asterisk password=$asterisk$123$')
+
+#-------------------------------------------------- BEGIN [production connect] - (14-07-2018 - 14:03:56) {{
+#cnx = pq.connect('host=172.16.16.9 port=5432 dbname=asterisk user=asterisk password=$asterisk$123$')
+#-------------------------------------------------- END   [production connect] - (14-07-2018 - 14:03:56) }}
+
 #cnx = pq.connect('host=190.117.161.6 dbname=asterisk user=asterisk password=$asterisk$123$')
 cnx.set_isolation_level(pq.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
@@ -30,7 +61,8 @@ def watch_db(fd, events):
     if state == pq.extensions.POLL_OK:
         notify = cnx.notifies.pop()
         print('>>>DB feeds!')
-        dispatchEvent('updateState',notify.payload)
+        #dispatchEvent('updateState', notify.payload)
+        dispatchEvent('updateState',json.loads(notify.payload))
 
 def dispatchEvent(event, data):
     for c in hub:
@@ -47,15 +79,24 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         hub.add(self)
         #cur = cnx.cursor(cursor_factory = psycopg2.extras.DictCursor)
         cur = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
-        query = "select id,callerid,state,exten,to_char(starttime,'DD/MM/YYYY - HH:MI:SS') as starttime,to_char(endtime,'DD/MM/YYYY - HH:MI:SS') as endtime,to_char(totaltime,'HH:MI:SS') as totaltime,to_char(ringtime,'HH:MI:SS') as ringtime,to_char(answertime,'HH:MI:SS') as answertime,to_char(holdtime,'HH:MI:SS') as holdtime,to_char(day,'DD/MM/YYYY') as day from agent_state where day = now()::date"
+        #query = "select id,callerid,state,exten,to_char(starttime,'DD/MM/YYYY - HH:MI:SS') as starttime,to_char(endtime,'DD/MM/YYYY - HH:MI:SS') as endtime,to_char(totaltime,'HH:MI:SS') as totaltime,to_char(ringtime,'HH:MI:SS') as ringtime,to_char(answertime,'HH:MI:SS') as answertime,to_char(holdtime,'HH:MI:SS') as holdtime,to_char(day,'DD/MM/YYYY') as day from agent_state where day = now()::date"
+        query = "select id,callerid,state,exten,calltype,(to_char(starttime,'DD/MM/YYYY - HH:MI:SS') is null) as starttime,(to_char(endtime,'DD/MM/YYYY - HH:MI:SS') is null) as endtime,(to_char(totaltime,'HH:MI:SS') is null) as totaltime,(to_char(ringtime,'HH:MI:SS') is null) as ringtime,(to_char(answertime,'HH:MI:SS') is null) as answertime,(to_char(holdtime,'HH:MI:SS') is null) as holdtime,(to_char(day,'DD/MM/YYYY') is null) as day from agent_state where day = now()::date"
         cur.execute(query)
-        #rows = cur.fetchall()
-        print(json.dumps(cur.fetchall(), indent=2))
+        rows = cur.fetchall()
+        #rows = cur.execute(query)
+        ds = list(rows)
+
+        #dump = json.dumps(cur.fetchall(), indent=2)
+        dump = json.dumps(ds)
+        print(type(dump))
+        print(dump)
         """
         for r in rows:
             print(r['callerid'])
         """
-        self.write_message(json.dumps({'event':'updateState','data':'a message from server'}))
+        #self.write_message(json.dumps({'event': 'fillData', 'data': json.dumps(cur.fetchall())}))
+        cur.close()
+        self.write_message(json.dumps({'event': 'fillData', 'data': ds}))
 
     def on_message(self, message):
         raw = json_decode(message)
@@ -80,12 +121,14 @@ handlers = [
     (r'/', IndexHandler),
     (r'/ws', WebSocketHandler),
     (r'/ajax', AjaxHandler),
+    (r"/login", LoginHandler),
 ]
 
 settings = dict(
     static_path = os.path.join(os.getcwd(), 'static'),
     template_path = os.path.join(os.getcwd(), 'templates'),
-    debug = True
+    debug = True,
+    cookie_secret="__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
 )
 
 app = tornado.web.Application(handlers, **settings)

@@ -1,0 +1,43 @@
+.div_exten{
+    /*text-align: center;*/
+    border: 1px solid #FF025F;
+    /*margin: 5px;*/
+    margin: 5px;
+    background-color: #EFF9FF;
+    width: 150px;
+    height: 80px;
+    /*font-size: 15px;*/
+    /*display:table-cell;*/
+    /*vertical-align:middle;*/
+    display:inline-block;
+    box-shadow: 3px 3px 8px #888888;
+}
+#div_main{
+    text-align: center;
+}
+.state{
+    font-size: 18px;
+}
+
+.idle{
+
+}
+.talking{
+
+}
+.ringing{
+
+}
+
+#div_log{
+    text-align: left;
+    width: 100%;
+    height: 19px;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    padding-bottom: 1px;
+    /*border-top: 1px blue;*/
+    border: 5px;
+    border-top-color: rgba(201, 76, 76, 0.3);
+}
