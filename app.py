@@ -41,6 +41,7 @@ class LoginHandler(BaseHandler):
 
 ioloop = tornado.ioloop.IOLoop.instance()
 hub = set()
+agents = []
 cnx = pq.connect('host=ryr.homeplex.org port=55443 dbname=asterisk user=asterisk password=$asterisk$123$')
 
 #-------------------------------------------------- BEGIN [production connect] - (14-07-2018 - 14:03:56) {{

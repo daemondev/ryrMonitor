@@ -12,6 +12,20 @@
     display:inline-block;
     box-shadow: 3px 3px 8px #888888;
 }
+#div_details{
+    position: absolute;
+    right: 0;
+    top: 0;
+    background-color: #D278FF;
+    width: 150px;
+    height: 80px;
+}
+
+#div_talking{
+    color:red;
+    font-size: 18px;
+}
+
 #div_main{
     text-align: center;
 }

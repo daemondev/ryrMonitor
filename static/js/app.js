@@ -5,7 +5,7 @@ var URL = 'ws://localhost:8000/ws';
 //var URL = 'ws://ryr.progr.am/ws'; //PRODUCTION URL
 //#-------------------------------------------------- END   [production URL] - (14-07-2018 - 14:03:05) }}
 
-
+var agents = [];
 var log_color = {"C": "#89FF28", "E": "#FF2828"};
 
 function setLog(message, color){
@@ -21,6 +21,10 @@ function onOpen(){
 var state_colors_dict = {"IDLE": "#C7E6F7", "RINGING": "#FCFFC3", "TALKING": "#A7FF81"};
 
 function updateState(data){
+    if (agents.indexOf(data['row']['callerid']) < 0) {
+        alert("insert new callerid: " + data['row']['callerid']);
+        updateCards(data['row']);
+    }
     target_exten = document.getElementById(data["row"]["callerid"]+"");
     target_exten.getElementsByClassName('state')[0].innerHTML = data["row"]['state'];
     target_exten.getElementsByClassName('calltype')[0].innerHTML = data["row"]['calltype'];
@@ -32,17 +36,28 @@ function displayMessage(data){
 	alert('displayMessage');
 }
 
-function getCard(data){
+function updateCards(callerID){
+    div_dataContainner = document.getElementById('dataContainner');
+    div_dataContainner.innerHTML = div_dataContainner.innerHTML + buildCard(callerID);
+}
+
+function buildCard(caller){
+        return "<div style='background-color:" + state_colors_dict[caller['state']] + ";' class='div_exten' id='" + caller['callerid'] + "'><span>AGENT: " + caller['callerid'] + " STATUS: <strong class='state'>" + caller['state'] + "</strong> CALLTYPE: <span class='calltype'>" + caller['calltype'] + "</span> PHONE: <span class='exten'>" + caller["exten"] + "</span></span></div>";
+}
+
+function populateCards(data){
     card = "<div id='dataContainner'>";
     for (var i = 0; i < data.length; i++) {
-        card = card + "<div style='background-color:" + state_colors_dict[data[i]['state']] + ";' class='div_exten' id='" + data[i]['callerid'] + "'><span>AGENT: " + data[i]['callerid'] + " STATUS: <strong class='state'>" + data[i]['state'] + "</strong> CALLTYPE: <span class='calltype'>" + data[i]['calltype'] + "</span> PHONE: <span class='exten'>" + data[i]["exten"] + "</span></span></div>";
+        agents.push(data[i]['callerid']);
+        //card = card + "<div style='background-color:" + state_colors_dict[data[i]['state']] + ";' class='div_exten' id='" + data[i]['callerid'] + "'><span>AGENT: " + data[i]['callerid'] + " STATUS: <strong class='state'>" + data[i]['state'] + "</strong> CALLTYPE: <span class='calltype'>" + data[i]['calltype'] + "</span> PHONE: <span class='exten'>" + data[i]["exten"] + "</span></span></div>";
+        card = card + buildCard(data[i]);
     }
     return card + "</div>";
 }
 
 function fillData (data) {
     div_data = document.getElementById('div_data');
-    div_data.innerHTML = getCard(data);
+    div_data.innerHTML = populateCards(data);
 }
 
 handlers = {
