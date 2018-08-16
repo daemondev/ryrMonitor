@@ -9,6 +9,8 @@ import psycopg2 as pq
 import psycopg2.extras
 import os
 
+import shutil
+
 class BaseHandler(tornado.web.RequestHandler):
     def get_current_user(self):
         return self.get_secure_cookie("user")
@@ -66,17 +68,49 @@ def watch_db(fd, events):
         dispatchEvent('updateState',json.loads(notify.payload))
 
 def dispatchEvent(event, data):
+    print('dispatching message to WS-clients [%s - %s]' % (event, data))
     for c in hub:
 	c.write_message(json.dumps({'event':event, 'data': data}))
 
+@gen.coroutine
+def get_record_file(id):
+    query = "select audiofile,dialstatus from calls where id = %d" % id
+    cur = cnx.cursor()
+    cur.execute(query)
+    rows = cur.fetchone()
+    audio_file = rows[0]
+    state = rows[1]
+    print(">>>>>>>>>[%s] - AUDIO-FILE: [%s]" % (state, audio_file))
+    #if state == 'ANSWER':
+    try:
+        shutil.copy(audio_file, '/home/ftp/francisco/_audios/')
+    	print("######################the audio files is [%s]" % audio_file)
+    except Exception as e:
+	pass
+
 def websocketManager(event, data):
-    print('sending message to clients')
-    for c in hub:
-        c.write_message(message)
+    if event == '__get_recorded_file__':
+	print("prepare work for retrieve record file [%s]" % data)
+	#get_record_file(int(data))
+    elif event == 'identify_android_device':
+        print(">>>> connected android device with: %s" % data)
+    else:
+	return
+	print("normal event")
+	for c in hub:
+            c.write_message("")
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
+    #def initialize(self):
+    #    self._closed = False
+
     def open(self):
-        print('new connection:', self)
+        print("\n\n\n>>>>>>>>>new connection: from: [%s] with agent [%s]" % (self.request.remote_ip  ,self.request.headers.get('User-Agent',False)))
+        agent = self.request.headers.get('User-Agent',False)
+	if agent:
+	    if agent == 'C-AsteriskClient':
+		return
+
         hub.add(self)
         #cur = cnx.cursor(cursor_factory = psycopg2.extras.DictCursor)
         cur = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
@@ -89,8 +123,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         #dump = json.dumps(cur.fetchall(), indent=2)
         dump = json.dumps(ds)
-        print(type(dump))
-        print(dump)
+        #print(type(dump))
+        #print(dump)
         """
         for r in rows:
             print(r['callerid'])
