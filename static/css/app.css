@@ -11,6 +11,7 @@
     /*vertical-align:middle;*/
     display:inline-block;
     box-shadow: 3px 3px 8px #888888;
+    cursor: pointer;
 }
 #div_details{
     position: absolute;
@@ -55,3 +56,43 @@
     border: 5px;
     border-top-color: rgba(201, 76, 76, 0.3);
 }
+#div_agent_stats{
+    display:none;
+    z-index:999;
+    width: 100%;
+    height: 100%;
+    background-color:  #F7FFE7;
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow:auto;
+}
+#div_close_agent_stats{
+    background-color: red;
+    width: 20px;
+    height: 20px;
+    right: 0;
+    top: 0;
+    position: fixed;
+    cursor: pointer;
+    color: #fff !important;
+    line-height: 1em;
+}
+.center{
+    text-align: center;
+}
+
+.center table{
+
+}
+.tbl_agent_stats{
+    text-align: center;
+    border: 0;
+    border-collapse: collapse;
+}
+
+.tbl_agent_stats tr:nth-child(even) {background: #E7FFFB}
+.tbl_agent_stats tr:nth-child(odd) {background: #FFFFFB}
+
+.tbl_agent_stats col:first-child {background: #FF0}
+.tbl_agent_stats col:nth-child(2n+3) {background: #CCC}
