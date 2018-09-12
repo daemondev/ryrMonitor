@@ -1,13 +1,25 @@
+drop table if exists "user";
+create table "user"(
+    id serial primary key,
+    device_id varchar(20),
+    "user" int,
+    password varchar(20),
+    state boolean,
+    ins timestamp default current_timestamp,
+    upd timestamp
+);
+
+
 drop table if exists calls;
 create table calls(
     id serial primary key,
     exten varchar(12),
     callerid int,
-    dialstart int default 0,
-    dialend int default 0,
-    dialedtime int default 0,
-    dtime int default 0,
-    answeredtime int default 0,
+    dialstart int,
+    dialend int,
+    dialedtime int,
+    dtime int,
+    answeredtime int,
     dialstatus varchar(12),
     hangupcause varchar(15),
     audiofile varchar(100),

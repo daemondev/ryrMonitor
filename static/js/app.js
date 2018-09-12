@@ -1,8 +1,8 @@
 var ws = null;
-//var URL = 'ws://localhost:8000/ws';
+var URL = 'ws://localhost:8000/ws';
 //var URL = 'ws://190.117.161.6:8000/ws';
 //#-------------------------------------------------- BEGIN [production URL] - (14-07-2018 - 14:03:05) {{
-var URL = 'ws://ryr.progr.am/ws'; //PRODUCTION URL
+//var URL = 'ws://ryr.progr.am/ws'; //PRODUCTION URL
 //#-------------------------------------------------- END   [production URL] - (14-07-2018 - 14:03:05) }}
 
 var agents = [];

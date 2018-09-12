@@ -46,10 +46,10 @@ class LoginHandler(BaseHandler):
 ioloop = tornado.ioloop.IOLoop.instance()
 hub = set()
 agents = []
-#cnx = pq.connect('host=ryr.homeplex.org port=55443 dbname=asterisk user=asterisk password=$asterisk$123$')
+cnx = pq.connect('host=ryr.homeplex.org port=55443 dbname=asterisk user=asterisk password=$asterisk$123$')
 
 #-------------------------------------------------- BEGIN [production connect] - (14-07-2018 - 14:03:56) {{
-cnx = pq.connect('host=172.16.16.9 port=5432 dbname=asterisk user=asterisk password=$asterisk$123$')
+#cnx = pq.connect('host=172.16.16.9 port=5432 dbname=asterisk user=asterisk password=$asterisk$123$')
 #-------------------------------------------------- END   [production connect] - (14-07-2018 - 14:03:56) }}
 
 #cnx = pq.connect('host=190.117.161.6 dbname=asterisk user=asterisk password=$asterisk$123$')
@@ -98,8 +98,8 @@ def get_record_file(id):
 
 @gen.coroutine
 def send_agent_stats(callerID, self):
-    query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date group by dialstatus order by 1 desc""" % callerID
-    query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date order by ins;""" % callerID
+    query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date-1 group by dialstatus order by 1 desc""" % callerID
+    query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date-1 order by ins;""" % callerID
 
     cursor = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
     cursor.execute(query1)
@@ -110,6 +110,16 @@ def send_agent_stats(callerID, self):
 
     self.write_message(json.dumps({'event': 'showAgentStats', 'data': [stats1, stats2]}))
 
+@gen.coroutine
+def send_chart_data(callerID, self):
+    query = """select count(id), callerid, extract(hour from ins)||':00' as "hour" from calls where ins::date = now()::date-1  and callerid = %d group by callerid, extract(hour from ins)||':00' order by callerid""" % callerID
+
+    cursor = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
+    cursor.execute(query)
+    chartData = list(cursor.fetchall());
+
+    self.write_message(json.dumps({'event': 'paintChart', 'data': chartData}))
+
 def websocketManager(event, data, self=None):
     if event == '__get_recorded_file__':
 	print("prepare work for retrieve record file [%s]" % data)
@@ -119,6 +129,8 @@ def websocketManager(event, data, self=None):
     elif event == 'getAgentStats':
         print(">>> sending stats for agent [%d]" % data)
         send_agent_stats(data, self)
+    elif event == 'getChartData':
+        send_chart_data(data, self)
     else:
 	return
 	print("normal event")
@@ -140,7 +152,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         #cur = cnx.cursor(cursor_factory = psycopg2.extras.DictCursor)
         cur = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         #query = "select id,callerid,state,exten,to_char(starttime,'DD/MM/YYYY - HH:MI:SS') as starttime,to_char(endtime,'DD/MM/YYYY - HH:MI:SS') as endtime,to_char(totaltime,'HH:MI:SS') as totaltime,to_char(ringtime,'HH:MI:SS') as ringtime,to_char(answertime,'HH:MI:SS') as answertime,to_char(holdtime,'HH:MI:SS') as holdtime,to_char(day,'DD/MM/YYYY') as day from agent_state where day = now()::date"
-        query = "select id,callerid,state,exten,calltype,(to_char(starttime,'DD/MM/YYYY - HH:MI:SS') is null) as starttime,(to_char(endtime,'DD/MM/YYYY - HH:MI:SS') is null) as endtime,(to_char(totaltime,'HH:MI:SS') is null) as totaltime,(to_char(ringtime,'HH:MI:SS') is null) as ringtime,(to_char(answertime,'HH:MI:SS') is null) as answertime,(to_char(holdtime,'HH:MI:SS') is null) as holdtime,(to_char(day,'DD/MM/YYYY') is null) as day from agent_state where day = now()::date"
+        query = "select id,callerid,state,exten,calltype,(to_char(starttime,'DD/MM/YYYY - HH:MI:SS') is null) as starttime,(to_char(endtime,'DD/MM/YYYY - HH:MI:SS') is null) as endtime,(to_char(totaltime,'HH:MI:SS') is null) as totaltime,(to_char(ringtime,'HH:MI:SS') is null) as ringtime,(to_char(answertime,'HH:MI:SS') is null) as answertime,(to_char(holdtime,'HH:MI:SS') is null) as holdtime,(to_char(day,'DD/MM/YYYY') is null) as day from agent_state where day = now()::date-1"
         cur.execute(query)
         rows = cur.fetchall()
         #rows = cur.execute(query)
