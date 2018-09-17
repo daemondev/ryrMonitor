@@ -11,7 +11,15 @@ import psycopg2.extras
 import os
 #from datetime import datetime
 
+#-------------------------------------------------- BEGIN [for download excel report] - (17-09-2018 - 03:39:29) {{
+import openpyxl
+import io
+from datetime import datetime
+#-------------------------------------------------- END   [for download excel report] - (17-09-2018 - 03:39:29) }}
+
 import shutil
+
+debug = True
 
 class BaseHandler(tornado.web.RequestHandler):
     def get_current_user(self):
@@ -25,6 +33,35 @@ class IndexHandler(BaseHandler):
             return
         name = tornado.escape.xhtml_escape(self.current_user)
         self.render('index.html', state='Ready!!!')
+
+class DownloadHandler(BaseHandler):
+    def get(self):
+        if debug:
+            query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where ins::date = now()::date order by ins;"""
+        else:
+            query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where ins::date = now()::date order by ins;"""
+
+        cursor = cnx.cursor()
+        cursor.execute(query2)
+        stats1 = cursor.fetchall();
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+
+        colnames = tuple(desc[0] for desc in cursor.description)
+        ws.append(colnames)
+
+        for r in stats1:
+            ws.append(r)
+
+        #ws["A1"] = "Hello OPENPYXL"
+
+        fs = io.BytesIO()
+        wb.save(fs)
+        self.set_header("ContentType", "application/vnd.ms-excel")
+        self.set_header("Content-Disposition", "attachment; filename=" + datetime.strftime(datetime.now(), "amazon-aws-report-%Y%m%d-%H%M") + ".xlsx")
+        self.write(fs.getvalue())
+
 
 class LoginHandler(BaseHandler):
     def get(self):
@@ -46,13 +83,14 @@ class LoginHandler(BaseHandler):
 ioloop = tornado.ioloop.IOLoop.instance()
 hub = set()
 agents = []
+#-------------------------------------------------- BEGIN [development connect] - (15-09-2018 - 20:42:09) {{
 cnx = pq.connect('host=ryr.homeplex.org port=55443 dbname=asterisk user=asterisk password=$asterisk$123$')
+#-------------------------------------------------- END   [development connect] - (15-09-2018 - 20:42:09) }}
 
 #-------------------------------------------------- BEGIN [production connect] - (14-07-2018 - 14:03:56) {{
 #cnx = pq.connect('host=172.16.16.9 port=5432 dbname=asterisk user=asterisk password=$asterisk$123$')
 #-------------------------------------------------- END   [production connect] - (14-07-2018 - 14:03:56) }}
 
-#cnx = pq.connect('host=190.117.161.6 dbname=asterisk user=asterisk password=$asterisk$123$')
 cnx.set_isolation_level(pq.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
 def listen(channel):
@@ -98,8 +136,12 @@ def get_record_file(id):
 
 @gen.coroutine
 def send_agent_stats(callerID, self):
-    query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date-1 group by dialstatus order by 1 desc""" % callerID
-    query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date-1 order by ins;""" % callerID
+    if debug:
+        query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date-2 group by dialstatus order by 1 desc""" % callerID
+        query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date-2 order by ins;""" % callerID
+    else:
+        query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date-2 group by dialstatus order by 1 desc""" % callerID
+        query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date order by ins;""" % callerID
 
     cursor = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
     cursor.execute(query1)
@@ -112,13 +154,26 @@ def send_agent_stats(callerID, self):
 
 @gen.coroutine
 def send_chart_data(callerID, self):
-    query = """select count(id), callerid, extract(hour from ins)||':00' as "hour" from calls where ins::date = now()::date-1  and callerid = %d group by callerid, extract(hour from ins)||':00' order by callerid""" % callerID
+    query = """select count(id) as "qtyCalls", callerid, extract(hour from ins) as "hour" from calls where ins::date = now()::date-2  and callerid = %d group by callerid, extract(hour from ins) order by callerid""" % callerID
+    query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date-2 group by dialstatus order by 1 desc""" % callerID
+    query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date-2 order by ins;""" % callerID
 
     cursor = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
+
+    cursor.execute(query1)
+    stats1 = list(cursor.fetchall());
+
+    cursor.execute(query2)
+    stats2 = list(cursor.fetchall());
+
     cursor.execute(query)
     chartData = list(cursor.fetchall());
 
-    self.write_message(json.dumps({'event': 'paintChart', 'data': chartData}))
+
+    print("\ncharting:\n")
+    print(chartData)
+
+    self.write_message(json.dumps({'event': 'paintChart', 'data': [stats1, stats2, chartData]}))
 
 def websocketManager(event, data, self=None):
     if event == '__get_recorded_file__':
@@ -152,7 +207,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         #cur = cnx.cursor(cursor_factory = psycopg2.extras.DictCursor)
         cur = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         #query = "select id,callerid,state,exten,to_char(starttime,'DD/MM/YYYY - HH:MI:SS') as starttime,to_char(endtime,'DD/MM/YYYY - HH:MI:SS') as endtime,to_char(totaltime,'HH:MI:SS') as totaltime,to_char(ringtime,'HH:MI:SS') as ringtime,to_char(answertime,'HH:MI:SS') as answertime,to_char(holdtime,'HH:MI:SS') as holdtime,to_char(day,'DD/MM/YYYY') as day from agent_state where day = now()::date"
-        query = "select id,callerid,state,exten,calltype,(to_char(starttime,'DD/MM/YYYY - HH:MI:SS') is null) as starttime,(to_char(endtime,'DD/MM/YYYY - HH:MI:SS') is null) as endtime,(to_char(totaltime,'HH:MI:SS') is null) as totaltime,(to_char(ringtime,'HH:MI:SS') is null) as ringtime,(to_char(answertime,'HH:MI:SS') is null) as answertime,(to_char(holdtime,'HH:MI:SS') is null) as holdtime,(to_char(day,'DD/MM/YYYY') is null) as day from agent_state where day = now()::date-1"
+        if debug:
+            query = "select id,callerid,state,exten,calltype,(to_char(starttime,'DD/MM/YYYY - HH:MI:SS') is null) as starttime,(to_char(endtime,'DD/MM/YYYY - HH:MI:SS') is null) as endtime,(to_char(totaltime,'HH:MI:SS') is null) as totaltime,(to_char(ringtime,'HH:MI:SS') is null) as ringtime,(to_char(answertime,'HH:MI:SS') is null) as answertime,(to_char(holdtime,'HH:MI:SS') is null) as holdtime,(to_char(day,'DD/MM/YYYY') is null) as day from agent_state where day = now()::date-2"
+        else:
+            query = "select id,callerid,state,exten,calltype,(to_char(starttime,'DD/MM/YYYY - HH:MI:SS') is null) as starttime,(to_char(endtime,'DD/MM/YYYY - HH:MI:SS') is null) as endtime,(to_char(totaltime,'HH:MI:SS') is null) as totaltime,(to_char(ringtime,'HH:MI:SS') is null) as ringtime,(to_char(answertime,'HH:MI:SS') is null) as answertime,(to_char(holdtime,'HH:MI:SS') is null) as holdtime,(to_char(day,'DD/MM/YYYY') is null) as day from agent_state where day = now()::date"
         cur.execute(query)
         rows = cur.fetchall()
         #rows = cur.execute(query)
@@ -194,6 +252,7 @@ handlers = [
     (r'/ws', WebSocketHandler),
     (r'/ajax', AjaxHandler),
     (r"/login", LoginHandler),
+    (r"/download", DownloadHandler),
 ]
 
 settings = dict(
