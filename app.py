@@ -19,6 +19,16 @@ from datetime import datetime
 
 import shutil
 
+class c:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 debug = True
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -37,7 +47,7 @@ class IndexHandler(BaseHandler):
 class DownloadHandler(BaseHandler):
     def get(self):
         if debug:
-            query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where ins::date = now()::date order by ins;"""
+            query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where ins::date = now()::date-2 order by ins;"""
         else:
             query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where ins::date = now()::date order by ins;"""
 
@@ -84,11 +94,14 @@ ioloop = tornado.ioloop.IOLoop.instance()
 hub = set()
 agents = []
 #-------------------------------------------------- BEGIN [development connect] - (15-09-2018 - 20:42:09) {{
-cnx = pq.connect('host=ryr.homeplex.org port=55443 dbname=asterisk user=asterisk password=$asterisk$123$')
 #-------------------------------------------------- END   [development connect] - (15-09-2018 - 20:42:09) }}
 
+if debug:
+    cnx = pq.connect('host=ryr.homeplex.org port=55443 dbname=asterisk user=asterisk password=$asterisk$123$')
+else:
+    cnx = pq.connect('host=172.16.16.9 port=5432 dbname=asterisk user=asterisk password=$asterisk$123$')
+
 #-------------------------------------------------- BEGIN [production connect] - (14-07-2018 - 14:03:56) {{
-#cnx = pq.connect('host=172.16.16.9 port=5432 dbname=asterisk user=asterisk password=$asterisk$123$')
 #-------------------------------------------------- END   [production connect] - (14-07-2018 - 14:03:56) }}
 
 cnx.set_isolation_level(pq.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
@@ -103,9 +116,10 @@ def watch_db(fd, events):
     state = cnx.poll()
     if state == pq.extensions.POLL_OK:
         notify = cnx.notifies.pop()
-        print('>>>DB feeds!')
+        print(c.WARNING + '>>>DB feeds!')
         #dispatchEvent('updateState', notify.payload)
         dispatchEvent('updateState',json.loads(notify.payload))
+        print('>>>end DB feeds!' + c.ENDC)
 
 def dispatchEvent(event, data):
     print('dispatching message to WS-clients [%s - %s]' % (event, data))
@@ -140,7 +154,7 @@ def send_agent_stats(callerID, self):
         query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date-2 group by dialstatus order by 1 desc""" % callerID
         query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date-2 order by ins;""" % callerID
     else:
-        query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date-2 group by dialstatus order by 1 desc""" % callerID
+        query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date group by dialstatus order by 1 desc""" % callerID
         query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date order by ins;""" % callerID
 
     cursor = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
@@ -154,9 +168,14 @@ def send_agent_stats(callerID, self):
 
 @gen.coroutine
 def send_chart_data(callerID, self):
-    query = """select count(id) as "qtyCalls", callerid, extract(hour from ins) as "hour" from calls where ins::date = now()::date-2  and callerid = %d group by callerid, extract(hour from ins) order by callerid""" % callerID
-    query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date-2 group by dialstatus order by 1 desc""" % callerID
-    query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date-2 order by ins;""" % callerID
+    if debug:
+        query = """select count(id) as "qtyCalls", callerid, extract(hour from ins) as "hour" from calls where ins::date = now()::date-2  and callerid = %d group by callerid, extract(hour from ins) order by callerid""" % callerID
+        query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date-2 group by dialstatus order by 1 desc""" % callerID
+        query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date-2 order by ins;""" % callerID
+    else:
+        query = """select count(id) as "qtyCalls", callerid, extract(hour from ins) as "hour" from calls where ins::date = now()::date  and callerid = %d group by callerid, extract(hour from ins) order by callerid""" % callerID
+        query1 = """select count(id) as "Q.CALLS", sum(COALESCE(dtime,0))*'1 second'::interval || '' as "dialedtime",sum(COALESCE(dtime,0) - COALESCE(answeredtime,0))*'1 second'::interval || '' as "ringingtime", sum(COALESCE(answeredtime,0))*'1 second'::interval || '' as "answeredtime", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end as "state" from calls where callerid = %d and ins::date = now()::date group by dialstatus order by 1 desc""" % callerID
+        query2 = """select callerid as "Agente", exten as "Teléfono", to_char(ins, 'HH:MI:SS') as "Inicio.Llamada", coalesce(to_char(upd, 'HH:MI:SS'),'') as "Fin.Llamada", coalesce(answeredtime,0) * '1 second'::interval || '' as "Tiempo.Hablado", coalesce(dtime-answeredtime,0) * '1 second'::interval || '' as "Tiempo.Timbrado", coalesce(dtime,0) * '1 second'::interval || '' as "Tiempo.Total", case dialstatus when 'ANSWER' then 'CONTESTADO' when 'CANCEL' then 'CANCELADO' ELSE COALESCE(dialstatus, 'CONGESTION-2') end  as "estado", calltype as "Tipo.Llamada" from calls where callerid = %d and ins::date = now()::date order by ins;""" % callerID
 
     cursor = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
 
@@ -169,9 +188,9 @@ def send_chart_data(callerID, self):
     cursor.execute(query)
     chartData = list(cursor.fetchall());
 
-
-    print("\ncharting:\n")
+    print(c.HEADER + "\nbegin charting:\n")
     print(chartData)
+    print("\nend charting:\n" + c.ENDC)
 
     self.write_message(json.dumps({'event': 'paintChart', 'data': [stats1, stats2, chartData]}))
 
@@ -197,7 +216,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     #    self._closed = False
 
     def open(self):
-        print("\n\n\n>>>>>>>>>new connection: from: [%s] with agent [%s]" % (self.request.remote_ip  ,self.request.headers.get('User-Agent',False)))
+        print(c.OKGREEN + "\n\n\n>>>>>>>>>new connection: from: [%s] with agent [%s] %s" % (self.request.remote_ip  ,self.request.headers.get('User-Agent',False), c.ENDC))
         agent = self.request.headers.get('User-Agent',False)
 	if agent:
 	    if agent == 'C-AsteriskClient':
@@ -233,12 +252,15 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         event = raw['event']
         data = raw['data']
 
-        print('message received from client', message)
+        print(c.OKBLUE + 'message received from client [%s] %s' %(message, c.ENDC))
         websocketManager(event, data, self)
 
     def on_close(self):
-        print('client disconnected:', self)
-        hub.remove(self)
+        print(c.FAIL + "client disconnected:")
+        print(self)
+        print (c.ENDC)
+	if self in hub:
+            hub.remove(self)
 
 class AjaxHandler(tornado.web.RequestHandler):
     def get(self):
