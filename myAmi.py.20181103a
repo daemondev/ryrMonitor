@@ -1,0 +1,58 @@
+import socket
+
+EOL = '\r\n'
+
+class MyAmi(object):
+    def __init__(self, host='190.117.113.7', port=5038):
+        self._socket = None
+        self.host = host
+        self.port = port
+
+    def connect(self, host=None, port=None):
+        host, port = host, port
+        if not host:
+            host = self.host
+        if not port:
+            port = self.port
+
+        _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _socket.connect((host, port))
+        self.socket = _socket.makefile()
+        _socket.close()
+
+    def send_action(self, cdict):
+        clist = []
+        for k, v in cdict.items():
+            if isinstance(v, list):
+                for item in v:
+                    item = tuple([k, v])
+                    clist.append("%s: %s" % item)
+            else:
+                item = tuple([k, v])
+                clist.append("%s: %s" % item)
+        clist.append(EOL)
+        command = EOL.join(clist)
+
+        self.socket.write(command)
+        self.socket.flush()
+
+    def login(self, user='richar', password="@admjds.progressive"):
+        cdict = {'Action':'Login'}
+        cdict['Username'] = user
+        cdict['Secret'] = password
+
+        self.send_action(cdict)
+
+    def hangup(channel):
+        cdict = {'Action':'Hangup'}
+        cdict['Channel'] = channel
+        response = self.send_action(cdict)
+
+        return response
+    def logoff():
+        cdict = {'Action':'Logoff'}
+        response = self.send_action(cdict)
+
+ami = MyAmi()
+ami.connect()
+ami.login()

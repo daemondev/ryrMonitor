@@ -1,0 +1,64 @@
+import socket
+
+host = "190.117.113.7"
+port = 5038
+
+EOL = '\r\n'
+
+cdict = {'Action':'Login'}
+cdict['Username'] = "richar"
+cdict['Secret'] = "@admjds.progressive"
+
+_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+_sock.connect((host, port))
+t_socket = _sock.makefile()
+_sock.close()
+
+class MyAmi(object):
+    def __init__(self, host, port=5038):
+        self._socket = None
+        self.host = host
+        self.port = port
+
+    def connect(self, host, port):
+        socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        socket.connect((host, port))
+        self.socket = socket.makefile()
+        socket.close()
+
+
+
+    def login(self, user, password):
+        cdict = {'Action':'Login'}
+        cdict['Username'] = user
+        cdict['Secret'] = password
+
+
+def hangup(channel):
+    cdict = {'Action':'Hangup'}
+    cdict['Channel'] = channel
+    response = self.send_action(cdict)
+
+    return response
+
+def send_action(cdict):
+    clist = []
+    for k, v in cdict.items():
+        if isinstance(v, list):
+            for item in v:
+                item = tuple([k, v])
+                clist.append("%s: %s" % item)
+        else:
+            item = tuple([k, v])
+            clist.append("%s: %s" % item)
+    clist.append(EOL)
+    command = EOL.join(clist)
+    t_socket.write(command)
+    t_socket.flush()
+
+def logoff():
+    cdict = {'Action':'Logoff'}
+
+send_action(cdict)
+
+print(socket.gethostname())

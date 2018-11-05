@@ -1,0 +1,91 @@
+import socket
+import threading
+
+try:
+    from Queue import Queue
+except ImportError:
+    from queue import Queue
+
+EOL = '\r\n'
+
+class MyAmi(object):
+    def __init__(self, host='190.117.113.7', port=5038):
+        self._socket = None
+        self.host = host
+        self.port = port
+        self._seq = 0
+        #self._seqlock = threading.Lock()
+        #self._reswaiting = []  # who is waiting for a response
+        #self._response_queue = Queue()
+
+    def connect(self, host=None, port=None):
+        host, port = host, port
+        if not host:
+            host = self.host
+        if not port:
+            port = self.port
+
+        _socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _socket.connect((host, port))
+        self.socket = _socket.makefile()
+        _socket.close()
+
+    def send_action(self, cdict):
+        clist = []
+        for k, v in cdict.items():
+            if isinstance(v, list):
+                for item in v:
+                    item = tuple([k, v])
+                    clist.append("%s: %s" % item)
+            else:
+                item = tuple([k, v])
+                clist.append("%s: %s" % item)
+        clist.append(EOL)
+        command = EOL.join(clist)
+
+        self.socket.write(command)
+
+        #print(self.socket.read(4096))
+
+        self.socket.flush()
+
+
+
+        #self._reswaiting.insert(0,1)
+        #response = self._response_queue.get()
+        #self._reswaiting.pop(0)
+        #print(response)
+
+    def next_seq(self):
+        """Return the next number in the sequence, this is used for ActionID"""
+        self._seqlock.acquire()
+        try:
+            return self._seq
+        finally:
+            self._seq += 1
+            self._seqlock.release()
+
+    def originate(self, caller_id, context, number):
+        cdict = {"Action":"Originate", "Channel": "SIP/%s" % caller_id, "Context": context, "Exten": number, "Priority": "1", "CallerID": caller_id, "TimeOut": "50000"}
+        self.send_action(cdict)
+
+    def login(self, user='richar', password="@admjds.progressive"):
+        cdict = {'Action':'Login'}
+        cdict['Username'] = user
+        cdict['Secret'] = password
+
+        self.send_action(cdict)
+
+    def hangup(channel):
+        cdict = {'Action':'Hangup'}
+        cdict['Channel'] = channel
+        response = self.send_action(cdict)
+
+        return response
+    def logoff():
+        cdict = {'Action':'Logoff'}
+        response = self.send_action(cdict)
+
+ami = MyAmi()
+ami.connect()
+ami.login()
