@@ -19,6 +19,11 @@ from datetime import datetime
 
 import shutil
 
+#-------------------------------------------------- BEGIN [for asterisk monitor] - (05-11-2018 - 22:51:49) {{
+from myAmi import *
+#-------------------------------------------------- END   [for asterisk monitor] - (05-11-2018 - 22:51:49) }}
+
+
 class c:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -72,6 +77,14 @@ class DownloadHandler(BaseHandler):
         self.set_header("Content-Disposition", "attachment; filename=" + datetime.strftime(datetime.now(), "amazon-aws-report-%Y%m%d-%H%M") + ".xlsx")
         self.write(fs.getvalue())
 
+class LogoutHandler(BaseHandler):
+    def get(self):
+        self.clear_cookie("user")
+        if self.get_secure_cookie("callerid"):
+            self.clear_cookie("callerid")
+        if self.get_cookie("canSpy"):
+            self.clear_cookie("canSpy")
+        self.redirect("/")
 
 class LoginHandler(BaseHandler):
     def get(self):
@@ -86,6 +99,13 @@ class LoginHandler(BaseHandler):
         password = self.get_argument("password")
         if user == "monitor" and password == "123":
             self.set_secure_cookie("user", user)
+            #self.set_secure_cookie("callerid", "1200")
+            #self.clear_cookie("user")
+            self.redirect("/")
+        elif user == "francisco" and password == "ryr":
+            self.set_secure_cookie("user", user)
+            self.set_secure_cookie("callerid", "1030")
+            self.set_cookie("canSpy", "1")
             self.redirect("/")
         else:
             self.redirect("/login")
@@ -194,6 +214,15 @@ def send_chart_data(callerID, self):
 
     self.write_message(json.dumps({'event': 'paintChart', 'data': [stats1, stats2, chartData]}))
 
+def activate_chanspy(to_spy, self):
+    callerid = self.get_secure_cookie("callerid")
+    if callerid:
+        ami = MyAmi()
+        ami.connect()
+        ami.login()
+        ami.chanspy(callerid, "call-monitor", to_spy[1:])
+        ami.logoff()
+
 def websocketManager(event, data, self=None):
     if event == '__get_recorded_file__':
 	print("prepare work for retrieve record file [%s]" % data)
@@ -205,6 +234,8 @@ def websocketManager(event, data, self=None):
         send_agent_stats(data, self)
     elif event == 'getChartData':
         send_chart_data(data, self)
+    elif event == 'monitor':
+        activate_chanspy(str(data).strip(), self)
     else:
 	return
 	print("normal event")
@@ -216,6 +247,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     #    self._closed = False
 
     def open(self):
+        #print(self.get_secure_cookie("user"))
         print(c.OKGREEN + "\n\n\n>>>>>>>>>new connection: from: [%s] with agent [%s] %s" % (self.request.remote_ip  ,self.request.headers.get('User-Agent',False), c.ENDC))
         agent = self.request.headers.get('User-Agent',False)
 	if agent:
@@ -227,7 +259,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         cur = cnx.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         #query = "select id,callerid,state,exten,to_char(starttime,'DD/MM/YYYY - HH:MI:SS') as starttime,to_char(endtime,'DD/MM/YYYY - HH:MI:SS') as endtime,to_char(totaltime,'HH:MI:SS') as totaltime,to_char(ringtime,'HH:MI:SS') as ringtime,to_char(answertime,'HH:MI:SS') as answertime,to_char(holdtime,'HH:MI:SS') as holdtime,to_char(day,'DD/MM/YYYY') as day from agent_state where day = now()::date"
         if debug:
-            query = "select id,callerid,state,exten,calltype,(to_char(starttime,'DD/MM/YYYY - HH:MI:SS') is null) as starttime,(to_char(endtime,'DD/MM/YYYY - HH:MI:SS') is null) as endtime,(to_char(totaltime,'HH:MI:SS') is null) as totaltime,(to_char(ringtime,'HH:MI:SS') is null) as ringtime,(to_char(answertime,'HH:MI:SS') is null) as answertime,(to_char(holdtime,'HH:MI:SS') is null) as holdtime,(to_char(day,'DD/MM/YYYY') is null) as day from agent_state where day = now()::date-2"
+            query = "select id,callerid,state,exten,calltype,(to_char(starttime,'DD/MM/YYYY - HH:MI:SS') is null) as starttime,(to_char(endtime,'DD/MM/YYYY - HH:MI:SS') is null) as endtime,(to_char(totaltime,'HH:MI:SS') is null) as totaltime,(to_char(ringtime,'HH:MI:SS') is null) as ringtime,(to_char(answertime,'HH:MI:SS') is null) as answertime,(to_char(holdtime,'HH:MI:SS') is null) as holdtime,(to_char(day,'DD/MM/YYYY') is null) as day from agent_state where day = now()::date-1"
         else:
             query = "select id,callerid,state,exten,calltype,(to_char(starttime,'DD/MM/YYYY - HH:MI:SS') is null) as starttime,(to_char(endtime,'DD/MM/YYYY - HH:MI:SS') is null) as endtime,(to_char(totaltime,'HH:MI:SS') is null) as totaltime,(to_char(ringtime,'HH:MI:SS') is null) as ringtime,(to_char(answertime,'HH:MI:SS') is null) as answertime,(to_char(holdtime,'HH:MI:SS') is null) as holdtime,(to_char(day,'DD/MM/YYYY') is null) as day from agent_state where day = now()::date"
         cur.execute(query)
@@ -275,6 +307,7 @@ handlers = [
     (r'/ajax', AjaxHandler),
     (r"/login", LoginHandler),
     (r"/download", DownloadHandler),
+    (r"/logout", LogoutHandler),
 ]
 
 settings = dict(

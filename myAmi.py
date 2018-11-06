@@ -1,10 +1,4 @@
 import socket
-import threading
-
-try:
-    from Queue import Queue
-except ImportError:
-    from queue import Queue
 
 EOL = '\r\n'
 
@@ -48,10 +42,10 @@ class MyAmi(object):
         self.send_action(cdict)
 
     def chanspy(self, caller_id, context, to_exten):
-        #cdict = {"Action":"Originate", "Channel": "SIP/%s" % caller_id, "Context": context, "Exten": to_exten, "Priority": "1", "CallerID": caller_id, "TimeOut": "50000"}
+        cdict = {"Action":"Originate", "Channel": "SIP/%s" % caller_id, "Context": context, "Exten": to_exten, "Priority": "1", "CallerID": caller_id, "TimeOut": "50000"}
         #cdict = {"Action":"Originate", "Application": "ChanSpy" ,"Channel": "SIP/%s" % caller_id, "Context": context, "Data": "SIP/%s" % to_exten, "Priority": "1", "CallerID": caller_id, "TimeOut": "50000"}
 
-        cdict = {"Action":"Originate", "Application": "ChanSpy" ,"Channel": "SIP/%s" % caller_id, "Data": "SIP/%s" % to_exten, "Priority": "1", "CallerID": caller_id, "Variable": "wq" }
+        #cdict = {"Action":"Originate", "Application": "ChanSpy" ,"Channel": "SIP/%s" % caller_id, "Data": "SIP/%s" % to_exten, "Priority": "1", "CallerID": caller_id, "Variable": "wq" }
         self.send_action(cdict)
 
     def login(self, user='richar', password="@admjds.progressive"):
@@ -71,11 +65,11 @@ class MyAmi(object):
         cdict = {'Action':'Logoff'}
         response = self.send_action(cdict)
 
-ami = MyAmi()
-ami.connect()
-ami.login()
-#ami.originate(1777, "call-asesor", 982929041)
-#ami.originate(1777, "superM", 982929041)
-#ami.chanspy(1777, "call-monitor", "015")
-ami.chanspy(1777, "call-monitor", "1777")
-ami.logoff()
+#ami = MyAmi()
+#ami.connect()
+#ami.login()
+##ami.originate(1777, "call-asesor", 982929041)
+##ami.originate(1777, "superM", 982929041)
+##ami.chanspy(1777, "call-monitor", "015")
+#ami.chanspy(1777, "call-monitor", "1777")
+#ami.logoff()

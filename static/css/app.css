@@ -11,7 +11,7 @@
     /*vertical-align:middle;*/
     display:inline-block;
     box-shadow: 3px 3px 8px #888888;
-    cursor: pointer;
+    position: relative;
 }
 #div_details{
     position: absolute;
@@ -67,6 +67,77 @@
     top: 0;
     overflow:auto;
 }
+
+.detail{
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    /*z-index: 999 !important;*/
+    background-image: url('../img/stats.png');
+    background-repeat: no-repeat;
+    height: 20px;
+    width: 56px;
+    cursor: pointer;
+}
+
+@font-face {
+    font-family: jura;
+    src: url(../fonts/Jura-Medium.ttf);
+}
+
+@font-face {
+    font-family: jura-bold;
+    src: url(../fonts/Jura-DemiBold.ttf);
+}
+
+@font-face {
+    font-family: jura-light;
+    src: url(../fonts/Jura-Light.ttf);
+}
+
+@font-face {
+    font-family: fira-hair;
+    src: url(../fonts/FiraSans-Hair.ttf);
+}
+
+@font-face {
+    font-family: fira;
+    src: url(../fonts/FiraSans-Medium.woff) format('woff');
+}
+
+body{
+    font-family: jura;
+    /*font-size: 10px;*/
+}
+
+#div_logout{
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.spying{
+    position: absolute;
+    right: 1;
+    bottom: 1;
+    background-image: url('../img/spy3.png');
+    height: 20px;
+    width: 56px;
+    cursor: pointer;
+}
+
+.spy{
+    position: absolute;
+    right: 1;
+    bottom: 1;
+    /*z-index: 999 !important;*/
+    /*background-image: url('../img/spy3.png');*/
+    background-image: url('../img/prevspy.png');
+    height: 20px;
+    width: 56px;
+    cursor: pointer;
+}
+
 #div_close_agent_stats{
     background-color: red;
     width: 20px;

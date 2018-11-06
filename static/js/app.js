@@ -21,8 +21,17 @@ function close_agents_stats(){
     document.getElementById("div_agent_stats").style.display = 'none';
 }
 
+getCookie = function(name) {
+    var r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+    return r ? r[1] : null;
+};
+
 function onOpen(){
     setLog("> CONNECTED TO SERVER!!!", "C");
+    var cookie = getCookie("canSpy");
+    if (getCookie("canSpy") == "1"){
+        canSpy = true;
+    }
 }
 
 var state_colors_dict = {"IDLE": "#C7E6F7", "RINGING": "#FCFFC3", "TALKING": "#A7FF81"};
@@ -61,9 +70,33 @@ function getAgentStats (callerID) {
     send('getAgentStats', callerID);
 }
 
+function getSpyIcon (caller){
+    if (canSpy){
+        return "<div class='spy' onclick='monitor(this, " + caller["callerid"] + ");'></div>"
+    }
+    return "";
+}
+
 function buildCard(caller){
         agents.push(caller['callerid']);
-        return "<div style='background-color:" + state_colors_dict[caller['state']] + ";' onclick='getAgentStats(" + caller["callerid"] + ");' class='div_exten' id='" + caller['callerid'] + "'><span>AGENT: " + caller['callerid'] + " STATUS: <strong class='state'>" + caller['state'] + "</strong> CALLTYPE: <span class='calltype'>" + caller['calltype'] + "</span> PHONE: <span class='exten'>" + caller["exten"] + "</span></span></div>";
+        return "<div style='background-color:" + state_colors_dict[caller['state']] + ";' class='div_exten' id='" + caller['callerid'] + "'><span>AGENT: " + caller['callerid'] + " STATUS: <strong class='state'>" + caller['state'] + "</strong> CALLTYPE: <span class='calltype'>" + caller['calltype'] + "</span> PHONE: <span class='exten'>" + caller["exten"] + "</span></span><div class='detail' onclick='getAgentStats(" + caller["callerid"] + ");'></div>" + getSpyIcon(caller) + "</div>";
+}
+
+inflect = null;
+canSpy = null;
+
+function monitor(self, callerid){
+    //print(document.cookie)
+    //alert(document.cookie);
+
+    if (inflect == null){
+        inflect = self;
+    } else {
+        inflect.className = 'spy';
+        inflect = self;
+    }
+    self.className = 'spying';
+    send('monitor', callerid);
 }
 
 function populateCards(data){
@@ -108,7 +141,8 @@ handlers = {
 	'updateState': updateState,
 	'displayMessage': displayMessage,
         'fillData': fillData,
-        'showAgentStats': showAgentStats
+        'showAgentStats': showAgentStats,
+        'monitor': monitor
 }
 
 function onMessage(message){
