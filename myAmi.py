@@ -7,7 +7,6 @@ class MyAmi(object):
         self._socket = None
         self.host = host
         self.port = port
-        self._seq = 0
 
     def connect(self, host=None, port=None):
         host, port = host, port
