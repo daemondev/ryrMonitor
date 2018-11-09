@@ -35,6 +35,7 @@ class c:
     UNDERLINE = '\033[4m'
 
 debug = True
+#debug = False
 
 class BaseHandler(tornado.web.RequestHandler):
     def get_current_user(self):
