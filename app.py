@@ -95,6 +95,7 @@ class LoginHandler(BaseHandler):
                    '</form></div></body></html>')
 
     def post(self):
+        users = {"francisco": {"pwd": "ryr", "callerid": "1074"}, "janeth": {"pwd":"ryr", "callerid":"1071"}, "deysi": {"pwd":"ryr","callerid":"1073"}}
         user = self.get_argument("name")
         password = self.get_argument("password")
         if user == "monitor" and password == "123":
@@ -102,11 +103,13 @@ class LoginHandler(BaseHandler):
             #self.set_secure_cookie("callerid", "1200")
             #self.clear_cookie("user")
             self.redirect("/")
-        elif user == "francisco" and password == "ryr":
-            self.set_secure_cookie("user", user)
-            self.set_secure_cookie("callerid", "1030")
-            self.set_cookie("canSpy", "1")
-            self.redirect("/")
+        #elif user == "francisco" and password == "ryr":
+        elif user in users.keys():
+            if password == users[user]["pwd"]:
+                self.set_secure_cookie("user", user)
+                self.set_secure_cookie("callerid", users[user]["callerid"])
+                self.set_cookie("canSpy", "1")
+                self.redirect("/")
         else:
             self.redirect("/login")
 
